@@ -31,6 +31,21 @@ namespace RAcc_Server
                 chosenip = validans.FindIndex(item => item == ans);
             }
             IPAddress ipAddress = ipHostInfo.AddressList[chosenip];
+            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 11000);
+            Socket listener = new Socket(ipAddress.AddressFamily,
+                SocketType.Stream, ProtocolType.Tcp);
+            listener.Bind(localEndPoint);
+            Console.WriteLine("    Listening...");
+            listener.Listen(1);
+            Socket handler = listener.Accept();
+            string data = null;
+            while (true)
+            {
+                byte[] bytes = new byte[1];
+                int bytesRec = handler.Receive(bytes);
+                data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                Console.Write(bytes[0]);
+            }
         }
         static List<int> Range(int start, int stop)
         {
