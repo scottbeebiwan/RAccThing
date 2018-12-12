@@ -12,29 +12,53 @@ namespace RAcc_Server
     {
         static void Main(string[] args)
         {
+            // Console Config
+            Console.Title = "RAccThing Server";
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Clear();
+            //
             Console.WriteLine("    RAccThing Server -- Written by ScottBeebiWan");
             Console.WriteLine("    Configuring TCP Listener...");
-            IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-            int chosenip = 0;
-            char i = '0';
-            List<char> validans = new List<char>();
+            IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName()); // Get host names
             Console.WriteLine("[?] Which IP do you want to listen on?");
-            List<IPAddress> addresses = ipHostInfo.AddressList.ToList();
-            addresses.Add(IPAddress.Parse("127.0.0.1"));
+            int chosenip = 0; // setup for creating a list of options
+            char i = '0'; List<char> validans = new List<char>(); 
+            List<IPAddress> addresses = ipHostInfo.AddressList.ToList(); // make a list of host names from thyself
+            addresses.Add(IPAddress.Parse("127.0.0.1")); // add localhost for testing as it isn't included
             foreach (var ip in addresses)
             {
-                i++;
-                validans.Add(i);
-                Console.WriteLine(" "+i.ToString()+": "+ip.ToString());
+                i++; //increase char (this works because the char gets turned into an int, added, then turned back into a char)
+                validans.Add(i); //add that to the list
+                Console.WriteLine(" "+i.ToString()+": "+ip.ToString()); //show that choice
             }
-            char ans = Choose(validans);
-            chosenip = validans.FindIndex(item => item == ans);
-            TcpListener listener = new TcpListener(addresses[chosenip], 3693);
-
-            Console.WriteLine("\nListening...");
-            
+            char ans = Choose(validans); //choose from list 
+            chosenip = validans.FindIndex(item => item == ans); //get the index of what was chosen
+            TcpListener listener = new TcpListener(addresses[chosenip], 3693); // set up a listener waiting on the chosen ip
+            listener.Start(); // start
+            Console.WriteLine("\nWaiting for client...");
+            TcpClient tcpc = listener.AcceptTcpClient(); // wait for a client
+            Console.WriteLine("Client connected!\n");
+            NetworkStream ns = tcpc.GetStream(); // make stream
+            bool connected = true;
+            while (connected)
+            {
+                int rdbyte = ns.ReadByte(); // read one byte
+                if (rdbyte == -1) // -1 means disconnected
+                {
+                    connected = false; //while will exit after this loop
+                    listener.Stop();
+                }
+                else
+                {
+                    char got = (char)rdbyte; //turn this byte into a char so it isnt gibberish
+                    Console.Write(got); // and just write it to the screen
+                }
+            }
+            Console.WriteLine("\nDisconnected.\nPress any key to exit...");  
+            Console.ReadKey(); // wait for a keypress
         }
-        static List<int> Range(int start, int stop)
+        static List<int> Range(int start, int stop) // basically a copy of python range()
         {
             int i;
             List<int> returnme = new List<int>();
@@ -44,7 +68,7 @@ namespace RAcc_Server
             }
             return returnme;
         }
-        static char Choose(List<char> validans)
+        static char Choose(List<char> validans) // epic chooser, pretty selfexplanatory
         {
             Console.Write(" ?> ");
             char red = Console.ReadKey().KeyChar;
