@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -34,20 +35,35 @@ namespace RAcc_Server
             }
             char ans = Choose(validans); //choose from list 
             chosenip = validans.FindIndex(item => item == ans); //get the index of what was chosen
-            TcpListener listener = new TcpListener(addresses[chosenip], 3693); // set up a listener waiting on the chosen ip
+            TcpListener listener = new TcpListener(addresses[chosenip], 4000); // set up a listener waiting on the chosen ip
             listener.Start(); // start
-            Console.WriteLine("\nWaiting for client...");
+            Console.WriteLine("\nServer started on "+addresses[chosenip]+", port 4000");
             TcpClient tcpc = listener.AcceptTcpClient(); // wait for a client
             Console.WriteLine("Client connected!\n");
             NetworkStream ns = tcpc.GetStream(); // make stream
             bool connected = true;
+            int rdbyte = 0;
             while (connected)
             {
-                int rdbyte = ns.ReadByte(); // read one byte
-                if (rdbyte == -1) // -1 means disconnected
+                try { rdbyte = ns.ReadByte(); } // read one byte
+                catch (IOException) { rdbyte = -2; }
+                if (rdbyte < 0) // -1 means disconnected
                 {
                     connected = false; //while will exit after this loop
                     listener.Stop();
+                }
+                else if ((char)rdbyte == 'I') // instruction
+                {
+                    string instruction = "I";
+                    bool reading_instruction = true;
+                    while (reading_instruction)
+                    {
+                        rdbyte = ns.ReadByte();
+                        if (rdbyte == -1) { connected = false; reading_instruction = false; }
+                        else if ((char)rdbyte == ';') { reading_instruction = false; }
+                        if (reading_instruction) { instruction += (char)rdbyte; }
+                    }
+                    Console.WriteLine("Unknown instruction:\n"+instruction); //no instructions have been programmed yet
                 }
                 else
                 {
@@ -55,7 +71,12 @@ namespace RAcc_Server
                     Console.Write(got); // and just write it to the screen
                 }
             }
-            Console.WriteLine("\nDisconnected.\nPress any key to exit...");  
+            if (rdbyte==-1) { 
+                Console.WriteLine("\nDisconnected.\nPress any key to exit...");
+            } else if (rdbyte==-2)
+            {
+                Console.WriteLine("\nForcefully disconnected.\nPress any key to exit...");
+            }
             Console.ReadKey(); // wait for a keypress
         }
         static List<int> Range(int start, int stop) // basically a copy of python range()
