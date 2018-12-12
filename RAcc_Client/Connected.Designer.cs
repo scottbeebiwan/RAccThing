@@ -1,6 +1,6 @@
 ﻿namespace RAcc_Client
 {
-    partial class Form1
+    partial class Connected
     {
         /// <summary>
         /// Required designer variable.
@@ -28,34 +28,21 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.label1 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(13, 13);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(155, 13);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "RAcc Client by ScottBeebiWan";
-            // 
-            // Form1
+            // Connected
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(381, 231);
-            this.Controls.Add(this.label1);
-            this.Name = "Form1";
-            this.Text = "RAcc Client";
+            this.ClientSize = new System.Drawing.Size(435, 247);
+            this.Name = "Connected";
+            this.Text = "Connected";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Connected_FormClosing);
+            this.Load += new System.EventHandler(this.Connected_Load);
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
         #endregion
-
-        private System.Windows.Forms.Label label1;
     }
 }
-
