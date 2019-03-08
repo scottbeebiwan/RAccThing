@@ -47,28 +47,13 @@ namespace RAcc_Server
             NetworkStream ns = tcpc.GetStream(); // make stream
             bool connected = true; // this will be set false and connection will close if auth fails
             int rdbyte = 0; // initialize byte reading variable
-            bool authing = true; // setting this to false will exit the auth loop
             NSStringWrite(ns, "MGV_NAME;"); //GiVe NAME
-            string name = "";
-            while (authing)
-            {
-                try { rdbyte = ns.ReadByte(); } // read one byte
-                catch (IOException) { rdbyte = -2; } // forced disconnect
-                if ((char)rdbyte == ';') //; ends name
-                {
-                    authing = false;
-                }
-                else
-                {
-                    name += (char)rdbyte;
-                }
-            }
+            string name = NSReadUntil(ns, ';');
             NSStringWrite(ns, "MWT_FUSR;"); //WaiT_For USeR
             if (ConsoleYN(name+" wants to connect. Let them? (Y/N) "))
             {
                 NSStringWrite(ns, "MOK;"); //OK
             } else {
-                NSStringWrite(ns, "MGTFO;"); //guess. just guess. what that means.
                 connected = false;
             }
             while (connected)
@@ -82,21 +67,13 @@ namespace RAcc_Server
                 }
                 else if ((char)rdbyte == 'I') // instruction: I[???][,arg];
                 {
-                    string instruction = "";
-                    bool reading_instruction = true;
-                    while (reading_instruction)
-                    {
-                        rdbyte = ns.ReadByte();
-                        if (rdbyte == -1) { connected = false; reading_instruction = false; }
-                        else if ((char)rdbyte == ';') { reading_instruction = false; }
-                        if (reading_instruction) { instruction += (char)rdbyte; }
-                    }
+                    string instruction = NSReadUntil(ns, ';');
                     string[] sp_instruction = instruction.Split(',');
                     RunInstruction(sp_instruction, ns, addresses[chosenip]);
                 }
                 else
                 {
-                    char got = (char)rdbyte; //turn this byte into a char so it isnt gibberish
+                    char got = (char)rdbyte; //turn this int into a char
                     Console.Write(got); // and just write it to the screen
                 }
             }
@@ -149,7 +126,7 @@ namespace RAcc_Server
             List<string> instruction = huh.ToList();
             if (instruction[0]=="SS") //ScreenShot
             {
-                Console.WriteLine("Screenshot Requested");
+                Console.Write("Screenshot Requested...");
                 var screenshot = new Bitmap(Screen.PrimaryScreen.Bounds.Width,
                     Screen.PrimaryScreen.Bounds.Height,
                     PixelFormat.Format32bppArgb); // New screen
@@ -157,17 +134,52 @@ namespace RAcc_Server
                 screenshot_obj.CopyFromScreen(Screen.PrimaryScreen.Bounds.X, Screen.PrimaryScreen.Bounds.Y,
                     0, 0,
                     Screen.PrimaryScreen.Bounds.Size, CopyPixelOperation.SourceCopy); //Copy from screen
+                byte[] png;
+                MemoryStream pngstream = new MemoryStream();
+                screenshot.Save(pngstream, ImageFormat.Png); //save to stream
+                png = pngstream.ToArray();
+                MemoryStream r_pngstream = new MemoryStream(png); //Reverse_pngstream
                 // initate file transfer on 4001
-                TcpListener sft = new TcpListener(ip, 4001);
-                sft.Start();
-                NSStringWrite(ns, "MGF_PLS,4001;"); //Get File_PLeaSe, port 4001
-                TcpClient sftc = sft.AcceptTcpClient();
-                var sftstream = sftc.GetStream();
-                screenshot.Save(sftstream, ImageFormat.Png); //save to string
-                sftstream.Close(500); //clean up your mess young man
-                sftc.Close();
-                sft.Stop();
+                FileTransfer(ns, 4001, ip, "screenshot.png", r_pngstream);
             }
+            if (instruction[0]=="DIR")
+            {
+
+            }
+        }
+        static void FileTransfer(NetworkStream ns, int port, IPAddress ip, string filename, MemoryStream filecontent)
+        {
+            TcpListener sft = new TcpListener(ip, port);
+            NSStringWrite(ns, $"MGF_PLS,{port},{filename},{filecontent.Length};");
+            Console.Write("Waiting for acceptance...");
+            string resp = NSReadUntil(ns, ';');
+            switch (resp)
+            {
+                case "ROK":
+                    break;
+                case "RNO":
+                    Console.Write("\nClient won't accept file transfer.\n");
+                    return;
+                default:
+                    Console.Write("Server confused!\n");
+                    NSStringWrite(ns, "MWHAT;");
+                    return;
+            }
+            sft.Start();
+            Console.Write("Waiting for connection...");
+            TcpClient sftc = sft.AcceptTcpClient();
+            NetworkStream sfts = sftc.GetStream();
+            Console.Write("Sending bytes\n");
+            while (filecontent.Position < filecontent.Length)
+            {
+                Console.Write($"{filecontent.Position} / {filecontent.Length}\r");
+                sfts.WriteByte((byte)filecontent.ReadByte());
+            }
+            Console.Write("\n");
+            Console.Write("Closing transfer connection");
+            sfts.Close();
+            sftc.Close();
+            sft.Stop();
         }
         static void NSStringWrite(NetworkStream ns, string wts) //write a string to the network stream without fuss
         {
@@ -178,6 +190,33 @@ namespace RAcc_Server
             }
             byte[] sendme = bytes.ToArray();
             ns.Write(sendme, 0, sendme.Length);
+        }
+        static string NSReadUntil(NetworkStream ns, char until)
+        {
+            int rdbyte;
+            string read = "";
+            bool escaping = false; bool looping = true;
+            while (looping)
+            {
+                try { rdbyte = ns.ReadByte(); } // read one byte
+                catch (IOException) { return read; } // forced disconnect
+                if ((char)rdbyte == '\\') // Escape
+                {
+                    escaping = true;
+                    try { rdbyte = ns.ReadByte(); } // read one byte
+                    catch (IOException) { return read; } // forced disconnect
+                }
+                if ((char)rdbyte == ';' && !escaping) //; ends name
+                {
+                    looping = false;
+                }
+                else
+                {
+                    read += (char)rdbyte;
+                }
+                escaping = false;
+            }
+            return read;
         }
     }
 }

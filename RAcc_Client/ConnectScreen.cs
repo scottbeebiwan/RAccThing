@@ -21,7 +21,7 @@ namespace RAcc_Client
         private void button1_Click(object sender, EventArgs e)
         {
             this.Hide();
-            Connected cs = new Connected(IPAddress.Parse(textBox1.Text));
+            Connected cs = new Connected(textBox1.Text, textBox2.Text);
             cs.Show();
         }
     }
